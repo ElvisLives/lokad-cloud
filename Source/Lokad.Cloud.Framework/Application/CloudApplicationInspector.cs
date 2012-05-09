@@ -78,7 +78,9 @@ namespace Lokad.Cloud.Application
                 {
                     { typeof(CloudService).FullName, cloudServiceTypeDefinitions },
                     { typeof(ScheduledService).FullName, scheduledServiceTypeDefinitions },
-                    { typeof(QueueService<>).FullName, queueServiceTypeDefinitions }
+                    { typeof(QueueService<>).FullName, queueServiceTypeDefinitions },
+                    { typeof(QueueServiceMultiple<>).FullName, queueServiceTypeDefinitions }
+
                 };
 
             // Instead of resolving, we reflect iteratively with multiple passes.
@@ -170,7 +172,7 @@ namespace Lokad.Cloud.Application
         {
             var baseRef = typeDefinition.BaseType;
             var baseRefName = baseRef.Namespace + "." + baseRef.Name;
-            if (baseRefName == typeof(QueueService<>).FullName)
+            if (baseRefName == typeof(QueueService<>).FullName || baseRefName == typeof(QueueServiceMultiple<>).FullName)
             {
                 return ((GenericInstanceType)baseRef).GenericArguments[0];
             }

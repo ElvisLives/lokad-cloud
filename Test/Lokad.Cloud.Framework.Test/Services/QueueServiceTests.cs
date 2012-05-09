@@ -51,20 +51,6 @@ namespace Lokad.Cloud.Test.Services
             Assert.AreEqual(285, sum, "result is different from expected.");	
         }
 
-        [Serializable]
-        class SquareMessage
-        {
-            public bool IsStart { get; set; }
-
-            public DateTimeOffset Expiration { get; set; }
-
-            public string ContainerName { get; set;}
-
-            public string BlobName { get; set;}
-
-            public TemporaryBlobName<decimal> BlobCounter { get; set; }
-        }
-
         [QueueServiceSettings(AutoStart = true, //QueueName = "SquareQueue",
         Description = "multiply numbers by themselves.")]
         class SquareQueueService : QueueService<SquareMessage>

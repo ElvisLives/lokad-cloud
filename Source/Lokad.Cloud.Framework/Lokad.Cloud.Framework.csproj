@@ -155,6 +155,7 @@
     <Compile Include="ServiceFabric\CloudServiceSettingsAttribute.cs" />
     <Compile Include="ServiceFabric\IInitializable.cs" />
     <Compile Include="ServiceFabric\QueueService.cs" />
+    <Compile Include="ServiceFabric\QueueServiceMultiple.cs" />
     <Compile Include="ServiceFabric\QueueServiceSettingsAttribute.cs" />
     <Compile Include="ServiceFabric\Runtime\Runtime.cs" />
     <Compile Include="ServiceFabric\Runtime\ServiceFabricHost.cs" />
