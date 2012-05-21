@@ -17,13 +17,14 @@ namespace Lokad.Cloud.Test.Services
     [TestFixture]
     public class QueueServiceMultipleTests
     {
+        const string containerName = "mockcontainer";
+        const string blobname = "blobname";
+
         [Test]
         public void SquareServiceTest()
         {
-            var storage = CloudStorage.ForInMemoryStorage().BuildStorageProviders();
-            var service = new SquareQueueService { Storage = storage, Environment = new MockEnvironment(), Log = NullLog.Instance};
-
-            const string containerName = "mockcontainer";
+            CloudStorageProviders storage = CloudStorage.ForInMemoryStorage().BuildStorageProviders();
+            SquareQueueService service = new SquareQueueService { Storage = storage, Environment = new MockEnvironment(), Log = NullLog.Instance };
 
             //filling blobs to be processed.
             for (int i = 0; i < 10; i++)
@@ -53,14 +54,13 @@ namespace Lokad.Cloud.Test.Services
         }
 
         [Test]
-        public void SquareServiceTestPulls32MessagesOffOfQueue()
+        public void SquareServiceRangePulls32MessagesOffOfQueue()
         {
-            var storage = CloudStorage.ForInMemoryStorage().BuildStorageProviders();
-            var service = new SquareQueueServiceRange { Storage = storage, Environment = new MockEnvironment(), Log = NullLog.Instance };
+            CloudStorageProviders storage = CloudStorage.ForInMemoryStorage().BuildStorageProviders();
 
-            const string containerName = "mockcontainer";
-            const string blobname = "blobname";
-
+            SquareQueueServiceRange service =
+                new SquareQueueServiceRange
+                    {Storage = storage, Environment = new MockEnvironment(), Log = NullLog.Instance};
             List<SquareMessage> messages = new List<SquareMessage>();
             for (int i = 0; i < 100; i++)
             {
@@ -87,6 +87,42 @@ namespace Lokad.Cloud.Test.Services
             Assert.AreEqual(68, queueCount);
         }
 
+        [Test]
+        public void SquareQueueServiceStartProcesses32()
+        {
+            CloudStorageProviders storage = CloudStorage.ForInMemoryStorage().BuildStorageProviders();
+
+            SquareQueueServiceStart service =
+                new SquareQueueServiceStart
+                    {Storage = storage, Environment = new MockEnvironment(), Log = NullLog.Instance};
+
+            List<SquareMessage> messages = new List<SquareMessage>();
+            for (int i = 0; i < 100; i++)
+            {
+                messages.Add(
+                    new SquareMessage
+                        {
+                            ContainerName = containerName,
+                            Expiration = DateTimeOffset.UtcNow + new TimeSpan(10, 0, 0, 0),
+                            IsStart = true,
+                            BlobName = blobname + i
+                        }
+                    );
+            }
+
+            var queueName = TypeMapper.GetStorageName(typeof(SquareMessage));
+            storage.QueueStorage.PutRange(queueName, messages);
+
+            service.StartService();
+
+            var blobNames = storage.BlobStorage.ListBlobNames(containerName);
+
+            int queueCount = storage.QueueStorage.GetApproximateCount(queueName);
+
+            Assert.AreEqual(32, blobNames.Count());
+            Assert.AreEqual(68, queueCount);
+        }
+
         [QueueServiceSettings(AutoStart = true,
             Description = "Write count of messages to blob")]
         private class SquareQueueServiceRange : QueueServiceMultiple<SquareMessage>
@@ -99,6 +135,20 @@ namespace Lokad.Cloud.Test.Services
             {
                 int count = messages.Count();
                 Blobs.PutBlob(messages.First().ContainerName, messages.First().BlobName, count);
+            }
+        }
+
+        [QueueServiceSettings(AutoStart = true,
+          Description = "Write to multiple blobs")]
+        private class SquareQueueServiceStart : QueueServiceMultiple<SquareMessage>
+        {
+            public void StartService()
+            {
+                StartImpl();
+            }
+            protected override void Start(SquareMessage message)
+            {
+                Blobs.PutBlob(message.ContainerName, message.BlobName, message.BlobCounter);
             }
         }
 

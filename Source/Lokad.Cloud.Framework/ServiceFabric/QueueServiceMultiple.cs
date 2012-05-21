@@ -23,6 +23,7 @@ namespace Lokad.Cloud.ServiceFabric
     public abstract class QueueServiceMultiple<T> : CloudService
         where T : class
     {
+        const int MaxAzureQueuePullSize = 32;
         readonly string _queueName;
         readonly string _serviceName;
         readonly TimeSpan _visibilityTimeout;
@@ -67,12 +68,27 @@ namespace Lokad.Cloud.ServiceFabric
         /// <summary>Do not try to override this method, use <see cref="Start"/> instead.</summary>
         protected sealed override ServiceExecutionFeedback StartImpl()
         {
-            var messages = Queues.Get<T>(_queueName, 32, _visibilityTimeout, _maxProcessingTrials).ToList();
+            var messages = Queues.Get<T>(_queueName, MaxAzureQueuePullSize, _visibilityTimeout, _maxProcessingTrials).ToList();
 
             var count = messages.Count();
             if (count > 0)
             {
-                StartRange(messages);
+                try
+                {
+                    StartRange(messages);
+                }
+                catch (ThreadAbortException)
+                {
+                    messages.ForEach(ResumeLater);
+                    // no effect if the message has already been deleted, abandoned or resumed
+                    throw;
+                }
+                catch (Exception)
+                {
+                    // no effect if the message has already been deleted, abandoned or resumed
+                    messages.ForEach(Abandon);
+                    throw;
+                }
             }
 
             // Messages might have already been deleted by the 'Start' method.
@@ -106,7 +122,6 @@ namespace Lokad.Cloud.ServiceFabric
             // no effect if the message has already been deleted, abandoned or resumed
             Delete(message);
         }
-
 
         /// <summary>Method called first by the <c>Lokad.Cloud</c> framework when a message is
         /// available for processing. The message is automatically deleted from the queue
